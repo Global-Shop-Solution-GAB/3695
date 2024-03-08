@@ -1,0 +1,133 @@
+Program.Sub.ScreenSU.Start
+Gui.PayReportForm..create
+Gui.PayReportForm..caption("Positive Pay Report")
+Gui.PayReportForm..size(4845,2160)
+Gui.PayReportForm..minx(0)
+Gui.PayReportForm..miny(0)
+Gui.PayReportForm..position(0,0)
+Gui.PayReportForm..event(UnLoad,PayReportForm_UnLoad)
+Gui.PayReportForm..forecolor(0)
+Gui.PayReportForm..fontstyle(,)
+Gui.PayReportForm..BackColor(-2147483633)
+Gui.PayReportForm..mousepointer(0)
+Gui.PayReportForm.lblStart.create(label,"Start Date",True,1935,255,1,200,200,True,0,Arial,8,-2147483633,0)
+Gui.PayReportForm.lblStart.defaultvalue("")
+Gui.PayReportForm.lblEnd.create(label,"End Date",True,1935,255,1,2500,200,True,0,Arial,8,-2147483633,0)
+Gui.PayReportForm.lblEnd.defaultvalue("")
+Gui.PayReportForm.cmdDone.create(button)
+Gui.PayReportForm.cmdDone.caption("Done")
+Gui.PayReportForm.cmdDone.size(855,375)
+Gui.PayReportForm.cmdDone.position(195,1080)
+Gui.PayReportForm.cmdDone.event(Click,cmddone_click)
+Gui.PayReportForm.cmdDone.defaultvalue("")
+Gui.PayReportForm.dtpStart.Create(DatePicker)
+Gui.PayReportForm.dtpStart.Size(1935,285)
+Gui.PayReportForm.dtpStart.Position(180,405)
+Gui.PayReportForm.dtpEnd.Create(DatePicker)
+Gui.PayReportForm.dtpEnd.Size(1935,285)
+Gui.PayReportForm.dtpEnd.Position(2505,405)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+	'Created for Automation Tool and Die by SKC on 4/5/2016
+	
+	F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)	
+	gui.PayReportForm..Show
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(DisplayError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.cmddone_click.Start
+F.Intrinsic.Control.Try
+	V.Local.sSql.Declare(String)
+	V.Local.sBankInfo.Declare(String)
+	V.Local.sFile.Declare(String)
+	V.Local.sFileName.Declare(String)
+	V.Local.sChecks.Declare(String)
+	V.Local.sStart.Declare(String)
+	V.Local.sEnd.Declare(String)
+	V.Local.sAmount.Declare(String)
+	V.Local.fAmount.Declare(Float)
+	V.Local.sVendorName.Declare(String)
+		
+	F.Intrinsic.String.Format(V.Screen.PayReportForm!dtpStart.Value,"YYYYMMDD",V.Local.sStart)
+	F.Intrinsic.String.Format(V.Screen.PayReportForm!dtpEnd.Value,"YYYYMMDD",V.Local.sEnd)
+	
+	'Get Check info
+	F.Intrinsic.String.Build("SELECT CL.CK_NO, CL.CK_DATE, CL.AMOUNT, CL.VEND_NO, VM.NAME_VENDOR FROM CHECKS_LOG CL LEFT JOIN V_VENDOR_MASTER VM ON CL.VEND_NO = VM.VENDOR WHERE CL.CK_DATE BETWEEN '{0}' AND '{1}' AND CL.CK_OR_VOID = 'C' ORDER BY CL.CK_DATE ASC",V.Local.sStart,V.Local.sEnd,V.Local.sSql)
+	F.ODBC.Connection!conx.OpenLocalRecordsetRO("rstCheck",V.Local.sSql)
+	
+	F.Intrinsic.Control.DoUntil(V.ODBC.conx!rstCheck.EOF,=,True)
+		V.Local.fAmount.Set(V.ODBC.conx!rstCheck.FieldVal!Amount)
+		F.Intrinsic.String.Replace(V.ODBC.conx!rstCheck.FieldValTrim!NAME_VENDOR,","," ",V.Local.sVendorName)
+		F.Intrinsic.String.Build("{0}{1},{2},{3},{4},{5}{6}",V.Local.sChecks,V.ODBC.conx!rstCheck.FieldValTrim!CK_No,V.ODBC.conx!rstCheck.FieldValTrim!Ck_Date,V.Local.fAmount,V.ODBC.conx!rstCheck.FieldValTrim!Vend_No,V.Local.sVendorName,V.Ambient.NewLine,V.Local.sChecks)
+	
+	F.ODBC.conx!rstCheck.MoveNext
+	F.Intrinsic.Control.Loop
+	
+	'Save string to file
+	F.Intrinsic.String.Build("{0}\PosPay_{1}.csv",V.Caller.FilesDir,V.Local.sStart,V.Local.sFile)
+	F.Intrinsic.UI.ShowSaveFileDialog(V.Local.sFile,"*.csv",V.Local.sFileName)
+	
+	F.Intrinsic.Control.If(V.Local.sFileName,!=,"***CANCEL***")
+		F.Intrinsic.File.String2File(V.Local.sFileName,V.Local.sChecks)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Control.ExitSub
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.Control.CallSub(Form1_unload)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(DisplayError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.cmddone_click.End
+
+Program.Sub.PayReportForm_UnLoad.Start
+F.Intrinsic.Control.Try
+
+	F.ODBC.Connection!conx.Close	
+	F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(DisplayError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.PayReportForm_UnLoad.End
+
+Program.Sub.DisplayError.Start
+F.Intrinsic.Control.Try
+	V.Local.sErrorMessage.Declare(String)
+	
+	F.Intrinsic.String.Build("Program: GCG_3695_Pos_Pay.g2u{0}{0}Sub: {1}{0}Error: {2}{0}Error Description: {3}",V.Ambient.NewLine,V.Args.Sub,V.Args.Error,V.Args.ErrorDescription,V.Local.sErrorMessage)
+	F.Intrinsic.UI.Msgbox(V.Local.sErrorMessage,"GAB Error")
+	
+	F.Intrinsic.Control.If(V.Args.Sub.LCase,=,"payreportform_unload")
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.EndIf
+	
+F.Intrinsic.Control.Catch
+	F.Intrinsic.UI.Msgbox("Fatal Error occurred in program GCG_3695_Pos_Pay.g2u","GAB Error")
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.DisplayError.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_7670_Pos_Pay$}$SKC$}$4/5/2016
+${$3$}$0$}$$}$0$}$-1$}$$}$12:00:00 AM$}$Run from Accounts Payable > Reports > Positive Pay Report which will be a custom menu item.  
+
+You will need to create a folder call PosPay in Global\Files and add a text document named PosPay.txt in the PosPay folder. Inside of the txt document will be your Bank Number and Account Number separated by a comma. This file is where your account information will be pulled from.
+
+Screen has a start date and end date.  The done button will do the following
+
+SELECT CK_NO, CK_DATE, AMOUNT, VEND_NO FROM CHECKS_LOG WHERE CK_DATE BETWEEN '{0}' AND '{1}' AND CK_OR_VOID = 'C' ORDER BY CK_DATE ASC.
+Loop through the recordset and build a CSV file in the following format.
+Bank Number(from PosPay.txt pos 0),Account Number(from PosPay.txt pos 1),CK_NO, CK_DATE(MMDDYYYY),AMOUNT(#.00),VEND_NO
+
+After the information is read to be saved a save prompt will display asking where to save the file and the user can alter the file name.
+
+Program.Sub.Comments.End
